@@ -3,35 +3,47 @@ library(shiny)
 library(shinydashboard)
 library(rhandsontable)
 library(tidyverse)
+library(cowplot)
+library(magick)
+library(grid)
+library(png)
+source("BV94isoch.R")
+
+T947b <- readPNG("www/Thiery947b2.png")
 
 ui <- dashboardPage(
     #Header
     dashboardHeader(title = "FIcalcR"),
+    
     #Sidebar
     dashboardSidebar(
         sidebarMenu(
             menuItem("Main", tabName = "Main"),
-            menuItem("H2O-NaCl", tabName = "HN"),
-            menuItem("H2O-CO2-NaCl", tabName = "HCN", badgeLabel = "coming soon", badgeColor = "green")
-        )
-    ),
+            menuItem("H2O-NaCl", tabName = "HN", badgeLabel = "under construction", badgeColor = "red"),
+            menuItem("H2O-CO2-NaCl", tabName = "HCN", badgeLabel = "coming soon", badgeColor = "green"),
+            menuItem("CO2-CH4", tabName = "CC", badgeLabel = "under construction", badgeColor = "red"))),
+    
     #Main Body
     dashboardBody(
         tabItems(
+    
     #Main tab content
             tabItem(tabName = "Main",
                 fluidRow(
-                    img(src = "FIcalcRlogo.png", height = 120, width = 240),
-                fluidRow(
                     box(
-                    title = "Welcome",
+                    img(src = "FIcalcRlogo.png", height = 120, width = 120),
                     br(),
                     strong("FIcalcR is a free and open-source online web app for calculating fluid inclusion data."),
                     br(),
-                    p("This app is programmed in RStudio using the Shiny package"),
+                    p("This app is programmed in RStudio and presented online using the Shiny package"),
                     br(),
-                    p("Users are welcome to contribute to the development of FIcalcR. The source code can be forked from GitHub 'add hyperlink'. Then you may choose to modify or recycle the code. Please, submit a pull request if you have fixed any bugs. Contact the developer directly if you wish to add significant content")
-                    )))),
+                    tags$div(class="header", checked=NA,
+                        tags$p("Users are welcome to contribute to the development of FIcalcR. The source code can be forked from "),
+                        tags$a(href="https://github.com/haroldsone/FIcalcR", "GitHub"),
+                        tags$br(),
+                        tags$p("Please, submit a pull request if you have fixed any bugs. Contact the developer directly (within GitHub) if you wish to add significant content")
+                    )
+))),
                     
     #H2O-NaCl tab content
             tabItem(tabName = "HN",
@@ -42,33 +54,101 @@ ui <- dashboardPage(
                         br(),
                         strong("Replace the values for Tmice and Th with your data"), 
                         br(), 
-                        rHandsontableOutput("table"), 
+                        rHandsontableOutput("table"),
                         br(), 
                         strong("pressing save will export an updated table to the working directory, in the future this file can be downloaded"), 
                         actionButton("save", "Save")),
                 fluidRow(
-                    box(title = "Isochores", plotOutput("plot"))),
+                    box(title = "Isochores", 
+                        plotOutput("plot"))),
                 fluidRow(
-                    box(title = "Salinity vs. Th", plotOutput("plot2"))),
+                    box(title = "Salinity vs. Th", 
+                        plotOutput("plot2"))),
                 fluidRow(
                     box(title = "References",
                         br(),
                         p("Bodnar, R.J., 1993, Revised equation and table for determining the freezing point depression of H2O-NaCl solutions, Geochimica et Cosmochimica Acta, vol. 57, p. 683-684"),
                         br(),
-                        p("Bodnar, R.J., Vityk, M.O., 1994, Interpretation of microthermometric data for H2O-NaCl fluid inclusions. In Fluid Inclusions in Minerals; Method and Applications, B. DeVivo & M.L. Frezzotti, eds., Virginia Polytechnic Institute and State University Press, Blacksburg, Virginia, p. 117-130"),
+                        p("Bodnar, R.J., and Vityk, M.O., 1994, Interpretation of microthermometric data for H2O-NaCl fluid inclusions. In Fluid Inclusions in Minerals; Method and Applications, B. DeVivo & M.L. Frezzotti, eds., Virginia Polytechnic Institute and State University Press, Blacksburg, Virginia, p. 117-130"),
                         br(),
                         p("Zhang, Y. and Frantz, J.D., 1987, Determination of the homogenization temperatures and densities of supercritical fluids in the system NaCl-KCl-CaCl2-H2O using synthetic fluid inclusions, Chemical Geology, vol. 64, pg. 335-350")))),
+    
     #H2O-CO2-NaCl tab content
             tabItem(tabName = "HCN",
-                 fluidRow(p("content coming soon")))
+                fluidRow(p("content coming soon"))),
+
+    #CO2-CH4 tab content
+            tabItem(tabName = "CC",
+                fluidRow(
+                        rHandsontableOutput("tableCC"),
+                        plotOutput("Thiery947b", click = "plot_click"),
+                        verbatimTextOutput("CH4est")))
 )))
     
 server <- function(input, output) {
 
-FIAid <- as.integer(c(1, 1, 1, 2, 2, 2, 2, 2, 3, 3))
+# # CO2-CH4 content
+  
+
+# CO2-CH4 dataframe
+FIAid <- rep(NA_integer_, 10)
+FIid <- rep(NA_integer_, 10)
+Tmc <- rep(NA_integer_, 10)
+VfrcVap <- rep(NA_integer_, 10)
+Th <- rep(NA_integer_, 10)
+HomToLorV <- rep(NA_integer_, 10)
+CO2densAtTh <-  rep(NA_integer_, 10)
+pureCO2molarVol <- rep(NA_integer_, 10)
+estCH4 <- rep(NA_integer_, 10)
+Bulkdens <- rep(NA_integer_, 10)
+BulkMV <- rep(NA_integer_, 10)
+CCdf <- data.frame(FIAid=FIAid, FIid=FIid, Tmc=Tmc, VfrcVap=VfrcVap, Th=Th, HomToLorV=HomToLorV, CO2densAtTh=CO2densAtTh, pureCO2molarVol=pureCO2molarVol, estCH4=estCH4, Bulkdens=Bulkdens, BulkMV=BulkMV)
+
+#CO2-CH4 data table rendering
+output$tableCC <- renderRHandsontable({
+    rhandsontable(CCdf)%>%
+        hot_col("CO2densAtTh", readOnly = TRUE) %>% 
+        hot_col("pureCO2molarVol", readOnly = TRUE) %>% 
+        hot_col("estCH4", readOnly = TRUE) %>% 
+        hot_col("Bulkdens", readOnly = TRUE) %>% 
+        hot_col("BulkMV", readOnly = TRUE)
+})    
+
+X_CH4 <- c(0.0:1.0, 0.01)
+MV <- c(30:100, 1)
+Tdf <- data.frame(X_CH4, MV)
+
+output$Thiery947b <- renderPlot({
+    ggplot(Tdf, aes(X_CH4, MV)) +
+    geom_blank(ymin = 35) +
+        ylim(35, 100) +
+        annotation_raster(T947b, xmin = 0, xmax = 1, ymin = 35, ymax = 100) +
+        coord_fixed(ratio = 0.01)
+})
+
+output$CH4est <- renderText({
+    paste0("X_CH4=", input$plot_click$x, "\nMolar Volume=", input$plot_click$y)
+})
+   
+# # H2O-NaCl content
+ 
+#H20-NaCl dataframe
+# FIAid <- rep(NA_real_, 10)
+# FIid <- rep(NA_real_, 10)
+# Tmice <- rep(NA_real_, 10)
+# Th <- rep(NA_real_, 10)
+# WtPctNaCl <- rep(NA_real_, 10)
+# molality <- rep(NA_real_, 10)
+# dens <- rep(NA_real_, 10)
+# PatTh <-  rep(NA_real_, 10)
+# Tcrit <- rep(NA_real_, 10)
+# Pcrit <- rep(NA_real_, 10)
+# dpdt <- rep(NA_real_, 10)
+
+FIAid <- as.character(c(1, 1, 1, 2, 2, 2, 2, 2, 3, 3))
 FIid <- as.integer(c(1, 2, 3, 1, 2, 3, 4, 5, 1, 2))
 Tmice <- c(-17.8, -18.0, -17.5, -9.6, -10, -9.5, -9, -10.2, -2, -2.5)
-Th <- c(85, 92, 97, 160, 164, 165, 163, 160, 230, 233)
+Th <- c(85, 92, 97, 120, 124, 125, 123, 120, 230, 233)
 WtPctNaCl <- (0.00 + 1.78 * abs(Tmice) - 0.0442 * abs(Tmice)^2 + 0.000557 * abs(Tmice)^3)
 t <- 18.01534 * WtPctNaCl / (18.01534 * WtPctNaCl + 58.4428 * (100 - WtPctNaCl))
 molality <- 55.55 * t / (1 - t)
@@ -97,8 +177,10 @@ dpdt <- as + bs * Th + cs * Th^2
 
 df <- data.frame(FIAid=FIAid, FIid=FIid, Tmice=Tmice, Th=Th, WtPctNaCl=WtPctNaCl, molality=molality, dens=dens, PatTh=PatTh, Tcrit=Tcrit, Pcrit=Pcrit, dpdt=dpdt)
 
+#make H20-NaCl data values reactive
 datavalues <- reactiveValues(data=df)
 
+#H2O-NaCl data table rendering
 output$table <- renderRHandsontable({
         rhandsontable(datavalues$data) %>%
         hot_col("WtPctNaCl", readOnly = TRUE) %>%
@@ -119,12 +201,13 @@ output$plot <- renderPlot({
         xlab("Temperature") + 
         ylab("Pressure") + 
         coord_cartesian(xlim = c(0, 600), ylim = c(0,6000)) +
-        theme_minimal() 
+        theme_cowplot() 
 })
 
 output$plot2 <- renderPlot({
-    ggplot(datavalues$data, aes(Th, WtPctNaCl)) +
-        geom_point()
+    ggplot(datavalues$data, aes(Th, WtPctNaCl, color = FIAid, size = 3)) +
+        geom_point() +
+        theme_cowplot()
 })
 
 observeEvent(
@@ -147,8 +230,8 @@ observeEvent(
             datavalues$data[xi+1,9] = 374.1 + 8.8*datavalues$data[xi+1,5] + 0.1771*datavalues$data[xi+1,5]^2 - 0.02113*datavalues$data[xi+1,5]^3 + 0.0007334*datavalues$data[xi+1,5]^4 #calculate the critical Temperature for the FI system
             
             datavalues$data[xi+1,10] = 2094 - 20.56*datavalues$data[xi+1,9] + 0.06896*datavalues$data[xi+1,9]^2 - 0.00008903*datavalues$data[xi+1,9]^3 + 0.00000004214*datavalues$data[xi+1,9]^4 #calculate the critical Pressure for the FI system
-            
-            datavalues$data[xi+1,11] = (18.28 + 1.4413 * datavalues$data[xi+1,5] + 0.0047241 * datavalues$data[xi+1,5]^2 - 0.0024213 * datavalues$data[xi+1,5]^3 + 0.000038064 * datavalues$data[xi+1,5]^4) + (0.019041 - 0.015268 * datavalues$data[xi+1,5] + 0.000566012 * datavalues$data[xi+1,5]^2 - 0.0000042329 * datavalues$data[xi+1,5]^3 - 0.000000030354 * datavalues$data[xi+1,5]^4) * datavalues$data[xi+1,4] + (-0.00015988 + 0.000036892 * datavalues$data[xi+1,5] - 0.0000019473 * datavalues$data[xi+1,5]^2 + 0.000000041674 * datavalues$data[xi+1,5]^3 - 0.00000000033008 * datavalues$data[xi+1,5]^4) * (datavalues$data[xi+1,4]^2) #calculate an isochore using Bodnar and Vityk (1994)
+   
+            datavalues$data[xi+1,11] = BV94isoch(datavalues$data[xi+1,5], datavalues$data[xi+1,4])         
 
 }
 )
@@ -160,4 +243,7 @@ saveData <- function(){
 observeEvent(input$save, saveData())
 
 }
+
+
+
 shinyApp(ui, server)
