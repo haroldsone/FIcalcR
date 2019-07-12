@@ -10,6 +10,7 @@ ui <- dashboardPage(
     #Sidebar
     dashboardSidebar(
         sidebarMenu(
+            menuItem("Main", tabName = "Main"),
             menuItem("H2O-NaCl", tabName = "HN"),
             menuItem("H2O-CO2-NaCl", tabName = "HCN", badgeLabel = "coming soon", badgeColor = "green")
         )
@@ -17,28 +18,50 @@ ui <- dashboardPage(
     #Main Body
     dashboardBody(
         tabItems(
-    #First tab content
+    #Main tab content
+            tabItem(tabName = "Main",
+                fluidRow(
+                    img(src = "FIcalcRlogo.png", height = 120, width = 240),
+                fluidRow(
+                    box(
+                    title = "Welcome",
+                    br(),
+                    strong("FIcalcR is a free and open-source online web app for calculating fluid inclusion data."),
+                    br(),
+                    p("This app is programmed in RStudio using the Shiny package"),
+                    br(),
+                    p("Users are welcome to contribute to the development of FIcalcR. The source code can be forked from GitHub 'add hyperlink'. Then you may choose to modify or recycle the code. Please, submit a pull request if you have fixed any bugs. Contact the developer directly if you wish to add significant content")
+                    )))),
+                    
+    #H2O-NaCl tab content
             tabItem(tabName = "HN",
                 fluidRow(
-                    img(src = "HNp.png", height = 120, width = 240, align = "center")),
-                fluidRow(
+                    img(src = "HNp.png", height = 120, width = 240),
+                    br(),
                     title = "Data Table", 
                         br(),
                         strong("Replace the values for Tmice and Th with your data"), 
                         br(), 
                         rHandsontableOutput("table"), 
                         br(), 
-                        strong("pressing save will export an updated table to the working directory"), 
+                        strong("pressing save will export an updated table to the working directory, in the future this file can be downloaded"), 
                         actionButton("save", "Save")),
                 fluidRow(
                     box(title = "Isochores", plotOutput("plot"))),
                 fluidRow(
-                    box(title = "Salinity vs. Th", plotOutput("plot2")))),
-                
-    #Second tab content
+                    box(title = "Salinity vs. Th", plotOutput("plot2"))),
+                fluidRow(
+                    box(title = "References",
+                        br(),
+                        p("Bodnar, R.J., 1993, Revised equation and table for determining the freezing point depression of H2O-NaCl solutions, Geochimica et Cosmochimica Acta, vol. 57, p. 683-684"),
+                        br(),
+                        p("Bodnar, R.J., Vityk, M.O., 1994, Interpretation of microthermometric data for H2O-NaCl fluid inclusions. In Fluid Inclusions in Minerals; Method and Applications, B. DeVivo & M.L. Frezzotti, eds., Virginia Polytechnic Institute and State University Press, Blacksburg, Virginia, p. 117-130"),
+                        br(),
+                        p("Zhang, Y. and Frantz, J.D., 1987, Determination of the homogenization temperatures and densities of supercritical fluids in the system NaCl-KCl-CaCl2-H2O using synthetic fluid inclusions, Chemical Geology, vol. 64, pg. 335-350")))),
+    #H2O-CO2-NaCl tab content
             tabItem(tabName = "HCN",
-                 fluidRow(p("content coming soon")
-)))))
+                 fluidRow(p("content coming soon")))
+)))
     
 server <- function(input, output) {
 
