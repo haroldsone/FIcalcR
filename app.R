@@ -7,7 +7,7 @@ library(cowplot)
 library(magick)
 library(grid)
 library(png)
-source("BV94isoch.R")
+source("CalcFuncs.R")
 
 T947b <- readPNG("www/Thiery947b2.png")
 
@@ -67,9 +67,13 @@ ui <- dashboardPage(
                 fluidRow(
                     box(title = "References",
                         br(),
+                        p("Atkinson, A.B. Jr., 2002, A Model for the PTX Properties of H2O-NaCl. Unpublished MSc Thesis, Dept. of Geosciences, Virginia Tech, Blacksburg VA, 133 pp."),
+                        br(),
                         p("Bodnar, R.J., 1993, Revised equation and table for determining the freezing point depression of H2O-NaCl solutions, Geochimica et Cosmochimica Acta, vol. 57, p. 683-684"),
                         br(),
                         p("Bodnar, R.J., and Vityk, M.O., 1994, Interpretation of microthermometric data for H2O-NaCl fluid inclusions. In Fluid Inclusions in Minerals; Method and Applications, B. DeVivo & M.L. Frezzotti, eds., Virginia Polytechnic Institute and State University Press, Blacksburg, Virginia, p. 117-130"),
+                        br(),
+                        p("Knight, C.L., Bodnar,R.J.,1989, Synthetic fluid inclusions: IX Critical PVTX properties of NaCl–H2O solutions, Geochimica et Cosmochimica Acta, vol. 53, p. 3–8"),
                         br(),
                         p("Zhang, Y. and Frantz, J.D., 1987, Determination of the homogenization temperatures and densities of supercritical fluids in the system NaCl-KCl-CaCl2-H2O using synthetic fluid inclusions, Chemical Geology, vol. 64, pg. 335-350")))),
     
@@ -149,27 +153,22 @@ FIAid <- as.character(c(1, 1, 1, 2, 2, 2, 2, 2, 3, 3))
 FIid <- as.integer(c(1, 2, 3, 1, 2, 3, 4, 5, 1, 2))
 Tmice <- c(-17.8, -18.0, -17.5, -9.6, -10, -9.5, -9, -10.2, -2, -2.5)
 Th <- c(85, 92, 97, 120, 124, 125, 123, 120, 230, 233)
-WtPctNaCl <- (0.00 + 1.78 * abs(Tmice) - 0.0442 * abs(Tmice)^2 + 0.000557 * abs(Tmice)^3)
-t <- 18.01534 * WtPctNaCl / (18.01534 * WtPctNaCl + 58.4428 * (100 - WtPctNaCl))
-molality <- 55.55 * t / (1 - t)
-g1 <- 1.0014
-g2 <- -0.00022323
-g3 <- -0.0000013472
-g4 <- -0.0000000046597
-g5 <- 0.023547
-g6 <- 0.0045636
-g7 <- 0.00048805
-g8 <- -0.00006498
-g9 <- -0.000053074
-g10 <- 0.000001009
-m <- molality
-dens <- (g1 + g5*m + g6*m^2 + g7*m^3) + (g2 + g8*m + g9*m^2) * Th + (g3 + g10*m) * Th^2 + g4*Th^3
-tr <- Th/100
-x1 <- exp(-5.38 + 0.0688*Th - 0.000208*Th^2 + 0.000000296*Th^3)
-x2 <- -135.99 + 304.37*tr - 236.18*tr^2 + 78.625*tr^3 - 10.094*tr^4 + 0.4244*tr^5
-PatTh <-  ifelse(Th > -21.2 & Th < 180.01, x1, x2)
-Tcrit <- 374.1 + 8.8*WtPctNaCl + 0.1771*WtPctNaCl^2 - 0.02113*WtPctNaCl^3 + 0.0007334*WtPctNaCl^4
-Pcrit <- 2094 - 20.56*Tcrit + 0.06896*Tcrit^2 - 0.00008903*Tcrit^3 + 0.00000004214*Tcrit^4
+WtPctNaCl <- B93s(Tmice)
+molality <- ZF87mol(WtPctNaCl)
+dens <- ZF87rho(molality, Th)
+
+if (Th > -21.2 & Th < 300) {
+  PatTh = A02e1(Th, WtPctNaCl)
+}
+else if (Th > 300 & Th < 484) {
+  PatTh = A02e2(Th, WtPctNaCl)
+}
+else {
+  PatTh = A02e3(Th, WtPctNaCl)
+}
+
+Tcrit <- KB89ct(WtPctNaCl)
+Pcrit <- KB89cp(Tcrit)
 as <- 18.28 + 1.4413 * WtPctNaCl + 0.0047241 * WtPctNaCl^2 - 0.0024213 * WtPctNaCl^3 + 0.000038064 * WtPctNaCl^4
 bs <- 0.019041 - 0.015268 * WtPctNaCl + 0.000566012 * WtPctNaCl^2 - 0.0000042329 * WtPctNaCl^3 - 0.000000030354 * WtPctNaCl^4
 cs <- -0.00015988 + 0.000036892 * WtPctNaCl - 0.0000019473 * WtPctNaCl^2 + 0.000000041674 * WtPctNaCl^3 - 0.00000000033008 * WtPctNaCl^4
@@ -210,27 +209,52 @@ output$plot2 <- renderPlot({
         theme_cowplot()
 })
 
+## If a change is made to the table, the following code will run to identify which row was changes, and recalculate as necessary
 observeEvent(
         input$table$changes$changes,
         {
+          
+# capture the row which is changed            
+            xi=input$table$changes$changes[[1]][[1]] 
             
-            xi=input$table$changes$changes[[1]][[1]] # capture the row which is changed
-            
+# use hot_t_r to convert to r objects
             datavalues$data <- hot_to_r(input$table) 
             
-            datavalues$data[xi+1,5] = 0.00 + 1.78 * abs(datavalues$data[xi+1,3]) - 0.0442 * abs(datavalues$data[xi+1,3])^2 + 0.000557 * abs(datavalues$data[xi+1,3])^3 #calculate the salinity using equation 1 from Bodnar (1993)
+##Calculate the salinity using equation 1 from Bodnar (1993)  
+            datavalues$data[xi+1,5] = B93s(datavalues$data[xi+1,3]) 
             
-            t <- 18.01534 * datavalues$data[xi+1,5] / (18.01534 * datavalues$data[xi+1,5] + 58.4428 * (100 - datavalues$data[xi+1,5]))
-            datavalues$data[xi+1,6] = 55.55 * t / (1 - t) # calculate molality
+##Calculate the molality from the salinity in weight percent NaCl using Zhang and Frantz (1987)
+            datavalues$data[xi+1,6] = ZF87mol(datavalues$data[xi+1,5]) 
             
-            datavalues$data[xi+1,7] = ifelse(datavalues$data[xi+1,6] < 5, (g1 + g5*datavalues$data[xi+1,6] + g6*datavalues$data[xi+1,6]^2 + g7*datavalues$data[xi+1,6]^3) + (g2 + g8*datavalues$data[xi+1,6] + g9*datavalues$data[xi+1,6]^2) * datavalues$data[xi+1,4] + (g3 + g10*datavalues$data[xi+1,6]) * datavalues$data[xi+1,4]^2 + g4*datavalues$data[xi+1,4]^3, NA_real_) #calculate the density using molality (m) into equation 22 from Zhang and Frantz (1987), Chemical Geology, vol. 64, pg. 335-350
-            
-            datavalues$data[xi+1,8] = ifelse(datavalues$data[xi+1,4] > -21.2 & datavalues$data[xi+1,4] < 180.01, exp(-5.38 + 0.0688*datavalues$data[xi+1,4] - 0.000208*datavalues$data[xi+1,4]^2 + 0.000000296*datavalues$data[xi+1,4]^3), -135.99 + 304.37*(datavalues$data[xi+1,4]/100) - 236.18*(datavalues$data[xi+1,4]/100)^2 + 78.625*(datavalues$data[xi+1,4]/100)^3 - 10.094*(datavalues$data[xi+1,4]/100)^4 + 0.4244*(datavalues$data[xi+1,4]/100)^5) #calculate pressure along L-V curve at Th
-            
-            datavalues$data[xi+1,9] = 374.1 + 8.8*datavalues$data[xi+1,5] + 0.1771*datavalues$data[xi+1,5]^2 - 0.02113*datavalues$data[xi+1,5]^3 + 0.0007334*datavalues$data[xi+1,5]^4 #calculate the critical Temperature for the FI system
-            
-            datavalues$data[xi+1,10] = 2094 - 20.56*datavalues$data[xi+1,9] + 0.06896*datavalues$data[xi+1,9]^2 - 0.00008903*datavalues$data[xi+1,9]^3 + 0.00000004214*datavalues$data[xi+1,9]^4 #calculate the critical Pressure for the FI system
+## Calculate the density (rho) using Zhang and Frantz (1987) for molality < 5, otherwise use Bodnar (1983)           
+             if(datavalues$data[xi+1,6] < 5) {
+               datavalues$data[xi+1,7] = ZF87rho(datavalues$data[xi+1,6], datavalues$data[xi+1,4])
+                  }
+             else if (datavalues$data[xi+1,6] > 5) {
+                  datavalues$data[xi+1,7] = B83rho(datavalues$data[xi+1,4], datavalues$data[xi+1,5])
+             }
+              else {
+                
+              }
    
+## Calculate the Pressure at Th using Atkinson (2002)        
+            if (datavalues$data[xi+1,4] > -21.2 & datavalues$data[xi+1,4] < 300) {
+              datavalues$data[xi+1,8] = A02e1(datavalues$data[xi+1,4], datavalues$data[xi+1,5])
+            }
+            else if (datavalues$data[xi+1,4] > 300 & datavalues$data[xi+1,4] < 484) {
+              datavalues$data[xi+1,8] = A02e2(datavalues$data[xi+1,4], datavalues$data[xi+1,5])
+            }
+            else {
+              datavalues$data[xi+1,8] = A02e3(datavalues$data[xi+1,4], datavalues$data[xi+1,5])
+            }
+            
+#calculate the critical Temperature for the FI system using Knight and Bodnar (1989)            
+            datavalues$data[xi+1,9] = KB89ct(datavalues$data[xi+1,5])
+
+#calculate the critical Pressure for the FI system
+            datavalues$data[xi+1,10] = KB89cp(datavalues$data[xi+1,9])
+   
+#calculate an isochore using Bodnar and Vityk (1994)
             datavalues$data[xi+1,11] = BV94isoch(datavalues$data[xi+1,5], datavalues$data[xi+1,4])         
 
 }

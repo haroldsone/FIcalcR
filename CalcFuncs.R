@@ -1,0 +1,167 @@
+BV94isoch <- function(S, Th) {
+  #function to calculate the isochore for a H2O-NaCl fluid using the salinity in weight percent NaCl and the homogenization temperature in degrees celcius
+  xrt = ((18.28+1.4413*S+0.0047241*S^2-0.0024213*S^3+0.000038064*S^4)+(0.019041-0.015268*S+0.000566012*S^2-0.0000042329*S^3-0.000000030354*S^4)*Th+(-0.00015988+0.000036892*S-0.0000019473*S^2+0.000000041674*S^3-0.00000000033008*S^4)*Th^2)
+}
+
+B93s <- function(Tmice) {
+  #function to calculate the salinity using Temperature on ice melting in equation 1 from Bodnar (1993)
+  WtPctNaCl = 0.00 + 1.78 * abs(Tmice) - 0.0442 * abs(Tmice)^2 + 0.000557 * abs(Tmice)^3
+}
+
+ZF87mol <- function(WtPctNaCl){
+  #calculate the molality using the salinity in weight percent NaCl
+  molality = 55.55 * (18.01534 * WtPctNaCl / (18.01534 * WtPctNaCl + 58.4428 * (100 - WtPctNaCl))) / (1 - (18.01534 * WtPctNaCl / (18.01534 * WtPctNaCl + 58.4428 * (100 - WtPctNaCl))))
+}
+
+ZF87rho <- function(molality, Th){
+  #if M<5 calculate the density using molality (m) into equation 22 from Zhang and Frantz (1987), Chemical Geology, vol. 64, pg. 335-350
+  #if M>5 calculate the density using Th and WtPctNaCl into equation A1 from Bodnar (1983)
+  g1 <- 1.0014
+  g2 <- -0.00022323
+  g3 <- -0.0000013472
+  g4 <- -0.0000000046597
+  g5 <- 0.023547
+  g6 <- 0.0045636
+  g7 <- 0.00048805
+  g8 <- -0.00006498
+  g9 <- -0.000053074
+  g10 <- 0.000001009
+  dens = (g1 + g5*molality + g6*molality^2 + g7*molality^3) + (g2 + g8*molality + g9*molality^2) * Th + (g3 + g10*molality) * Th^2 + g4*Th^3 
+}
+  
+B83rho <- function(Th, WtPctNaCl){
+# calculate the density using Th and WtPctNaCl into equation A1 from Bodnar (1983)
+  dens = 0.9923 - 0.030512 * (Th/100)^2 - 0.00021977 * (Th/100)^4 + 0.086241 (WtPctNaCl/10) - 0.041768 * (Th/100) * (WtPctNaCl/10) + 0.014825 * (Th/100)^2 * (WtPctNaCl/10) + 0.0014460 * (Th/100)^3 * (WtPctNaCl/10) - 0.0000000030852 * (Th/100)^8 * (WtPctNaCl/10) + 0.013051 * (Th/100) * (WtPctNaCl/10)^2 - 0.0061402 * (Th/100)^2 * (WtPctNaCl/10)^2 - 0.0012843 * (Th/100) * (WtPctNaCl/10)^3 + 0.00037604 * (Th/100)^2 * (WtPctNaCl)^3 - 0.0000000099594 * (Th/100)^2 * (WtPctNaCl)^7
+}
+
+## function to calculate Pressure given Temperature and Salinity using equation 1 from Atkinson (2002)
+## use in temperature range -21.2 to 300 C
+## input Temperature(T) in celcius and salinity(S) in weight percent NaCl
+
+A02e1 <- function(T, S){
+  b100 <- -27.2444260945847
+  b110 <- 19.6752698743832
+  b120 <- -6.03987279418686
+  b130 <- 1.05318996126294
+  b140 <- -0.107523830798341
+  b150 <- 0.0063216048751384
+  b160 <- -0.000201391014431089
+  b170 <- 0.0000029370853393422
+  b101 <- -3.43823854919821
+  b111 <- 2.94599944070388
+  b121 <- -1.02712250242286
+  b131 <- 0.132241696257544
+  b151 <- -0.000792743415349166
+  b112 <- -5.05958726370657
+  b122 <- 5.3605248349362
+  b132 <- -1.43460393380215
+  b142 <- 0.115824432759682
+  b103 <- 49.6470810423974
+  b113 <- -78.057932502234
+  b123 <- 18.9371135629599
+  b133 <- -0.517812895404853
+  b143 <- -0.147543794540513
+  b104 <- 284.920532084465
+  b124 <- -27.5731923399911
+  b134 <- 4.28981312806579
+  b105 <- -671.468924936888
+  b115 <- 272.541674619991
+  b125 <- -43.6261697756668
+  b106 <- -306.420824097701
+  b116 <- 191.281847960897
+  b107 <- -476.3912831617690
+  xr1 <- S/100
+  tr1 <- (T+273.15)/100
+  P = 10^(b100 + b101*xr1 + b103*xr1^3 + b104*xr1^4 + b105*xr1^5 + b106*xr1^6 + b107*xr1^7 + b110*tr1 + b120*tr1^2 + b130*tr1^3 + b140*tr1^4 + b150*tr1^5 + b160*tr1^6 + b170*tr1^7 + b111*tr1*xr1 + b112*tr1*xr1^2 + b113*tr1*xr1^3 + b115*tr1*xr1^5 + b116*tr1*xr1^6 +b121*tr1^2*xr1 + b122*tr1^2*xr1^2 + b123*tr1^2*xr1^3 + b124*tr1^2*xr1^4 + b125*tr1^2*xr1^5 + b131*tr1^3*xr1 + b132*tr1^3*xr1^2 + b133*tr1^3*xr1^3 + b134*tr1^3*xr1^4 + b142*tr1^4*xr1^2 + b143*tr1^4*xr1^3 + b151*tr1^5*xr1)
+}
+
+## function to calculate Pressure given Temperature and Salinity using equation 2 from Atkinson (2002)
+## use in temperature range 300 to 484 C
+## input Temperature(T) in celcius and salinity(S) in weight percent NaCl
+
+## It is unclear if coefficient b60 in table 3 should be used for the final portion of the equation (ie, "b61*T6*X1") or if b61 is 0, 0 is used here
+
+A02e2 <- function(Th, WtPctNaCl){
+  b200 <- -7.25091694178014
+  b201 <- 52.7356253268118
+  b202 <- -95.139589091999
+  b203 <- 237.001333358832
+  b204 <- -270.853923550159
+  b206 <- -645.843502315573
+  b207 <- 411.125432162485
+  b210 <- 2.91847163119225
+  b211 <- -30.0742277771278
+  b212 <- 41.0055099275695
+  b213 <- -82.6121950337547
+  b214 <- 86.8864476861164
+  b215 <- 85.0303689746524
+  b216 <- -24.1431916305905
+  b220 <- -0.28727704099067
+  b221 <- 5.98143068258883
+  b222 <- -5.87588111777108
+  b223 <- 7.89995198785004
+  b224 <- -10.886118260654
+  b230 <- 0.00898343968706551
+  b231 <- -0.436696998416016
+  b232 <- 0.27654361988714
+  b243 <- -0.0074586977134027
+  b251 <- 0.000828114542697018
+  b260 <- 0.0000015228510009732
+  b261 <- 0
+  xr2 <- WtPctNaCl/100
+  tr2 <- (Th+273.15)/100
+  P = 10^(b200 + b201*xr2 + b202*xr2^2 + b203*xr2^3 + b204*xr2^4 + b206*xr2^6 + b207*xr2^7 + b210*tr2 + b220*tr2^2 + b230*tr2^3 + b260*tr2^6 + b211*tr2*xr2 + b212*tr2*xr2^2 + b213*tr2*xr2^3 + b214*tr2*xr2^4 + b215*tr2*xr2^5 + b216*tr2*xr2^6 + b221*tr2^2*xr2 + b222*tr2^2*xr2^2 + b223*tr2^2*xr2^3 + b224*tr2^2*xr2^4 + b231*tr2^3*xr2 + b232*tr2^3*xr2^2 + b243*tr2^4*xr2^3 + b251*tr2^5*xr2 + b261*tr2^6*xr2)
+}
+
+## function to calculate Pressure given Temperature and Salinity using equation 2 from Atkinson (2002)
+## use in temperature range 300 to 484 C
+## input Temperature(T) in celcius and salinity(S) in weight percent NaCl
+
+## It is unclear if coefficient b16 in table 4 is 0, 0 is used here, same is true for b23
+
+A02e3 <- function(Th, WtPctNaCl){
+  b300 <- -10.1708289018151
+  b302 <- 11.2757426837744
+  b303 <- -36.872487022751
+  b304 <- 194.960961125252
+  b305 <- -412.422321803683
+  b306 <- 386.510614818185
+  b307 <- -139.824224670799
+  b310 <- 4.7809083340614
+  b311 <- -0.40967075242513
+  b312 <- -4.54787095348135
+  b314 <- 7.95552629364737
+  b315 <- -6.37018268058654
+  b320 <-  -0.739844995911952
+  b321 <- 0.253297767997384
+  b322 <- 0.47135407604605
+  b324 <- 0.546929925768266
+  b330 <- 0.06103819662666580000
+  b331 <- -0.0345961482768031
+  b332 <- 0.0366507031096144
+  b333 <- -0.0221690359176769
+  b340 <- -0.00273833143331212000
+  b341 <- 0.0003090020876693
+  b343 <- 0.000111317870749135
+  b350 <- 0.00008040575345729920
+  b351 <- -0.000005651762407103
+  b360 <- -0.00000127759502052200
+  b370 <- 0.00000000897506220730
+  xr3 <- WtPctNaCl/100
+  tr3 <- (Th+273.15)/100
+  P = 10^(b300 + b302*xr3^2 + b303*xr3^3 + b304*xr3^4 + b305*xr3^5 + b306*xr3^6 + b307*xr3^7 + b310*tr3 + b320*tr3^2 + b330*tr3^3 + b340*tr3^4 + b350*tr3^5 + b360*tr3^6 + b370*tr3^7 + b311*tr3*xr3 + b312*tr3*xr3^2 + b314*tr3*xr3^4 + b315*tr3*xr3^5 + b321*tr3^2*xr3 + b322*tr3^2*xr3^2 + b324*tr3^2*xr3^4 + b331*tr3^3*xr3 + b332*tr3^3*xr3^2 + b333*tr3^3*xr3^3 + b341*tr3^4*xr3 + b343*tr3^4*xr3^3 + b351*tr3^5*xr3)
+}
+
+## Knight and Bodnar (1989) equation to calculate the critical temperature
+
+KB89ct <- function(WtpctNaCl){
+  Tcrit <- 374.1 + 8.8 * WtpctNaCl + 0.1771 * WtpctNaCl^2 - 0.02113 * WtpctNaCl^3 + 0.0007334 * WtpctNaCl^4
+}
+
+## Knight and Bodnar (1989) equation to calculate the critical pressure
+
+KB89cp <- function(Tcrit){
+  Pcrit <- 2094 - 20.56 * Tcrit + 0.06896 * Tcrit^2 - 0.00008903 * Tcrit^3 + 0.00000004214 * Tcrit^4
+}
+
+
