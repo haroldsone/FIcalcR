@@ -19,7 +19,7 @@ ui <- dashboardPage(
     dashboardSidebar(
         sidebarMenu(
             menuItem("Main", tabName = "Main"),
-            menuItem("H2O-NaCl", tabName = "HN", badgeLabel = "under construction", badgeColor = "red"),
+            menuItem("H2O-NaCl", tabName = "HN"),
             menuItem("H2O-CO2-NaCl", tabName = "HCN", badgeLabel = "coming soon", badgeColor = "green"),
             menuItem("CO2-CH4", tabName = "CC", badgeLabel = "under construction", badgeColor = "red"))),
     
@@ -42,8 +42,7 @@ ui <- dashboardPage(
                         tags$a(href="https://github.com/haroldsone/FIcalcR", "GitHub"),
                         tags$br(),
                         tags$p("Please, submit a pull request if you have fixed any bugs. Contact the developer directly (within GitHub) if you wish to add significant content")
-                    )
-))),
+)))),
                     
     #H2O-NaCl tab content
             tabItem(tabName = "HN",
@@ -52,12 +51,16 @@ ui <- dashboardPage(
                     br(),
                     title = "Data Table", 
                         br(),
-                        strong("Replace the values for Tmice and Th with your data"), 
+                        strong("-Replace the values for Tm and Th with your data"), 
                         br(), 
+                        strong("-In column 'phase': Enter the value for last phase to disappear (1 = ice, 2 = halite and 3 = hydrohalite)"),
+                        br(),
+                        strong("-Copying data from an excel table and pasting into the below table will work, and new rows will automatically be added. Use caution however, as some of the error handling will not function properly to warn of values outside acceptable ranges, etc."),
+                        br(),
                         rHandsontableOutput("table"),
-                        br(), 
-                        strong("pressing save will export an updated table to the working directory, in the future this file can be downloaded"), 
-                        actionButton("save", "Save")),
+                fluidRow(
+                        downloadButton("downloadHNt", "Download"),
+                        strong("To save, add '.csv' to the end of the filename")),
                 fluidRow(
                     box(title = "Isochores", 
                         plotOutput("plot"))),
@@ -75,7 +78,7 @@ ui <- dashboardPage(
                         br(),
                         p("Knight, C.L., Bodnar,R.J.,1989, Synthetic fluid inclusions: IX Critical PVTX properties of NaCl–H2O solutions, Geochimica et Cosmochimica Acta, vol. 53, p. 3–8"),
                         br(),
-                        p("Zhang, Y. and Frantz, J.D., 1987, Determination of the homogenization temperatures and densities of supercritical fluids in the system NaCl-KCl-CaCl2-H2O using synthetic fluid inclusions, Chemical Geology, vol. 64, pg. 335-350")))),
+                        p("Sterner, S.M., Hall, D.L., Bodnar, R.J., 1988, Synthetic fluid inclusions. V. Solubility relations in the system NaCl-KCl-H2O under vapor-saturated conditions, Geochimica et Cosmochimica Acta, vol. 52, p. 989-1006"))))),
     
     #H2O-CO2-NaCl tab content
             tabItem(tabName = "HCN",
@@ -136,10 +139,10 @@ output$CH4est <- renderText({
    
 # # H2O-NaCl content
  
-#H20-NaCl dataframe
+#H20-NaCl dataframe with blank cells
 # FIAid <- rep(NA_real_, 10)
 # FIid <- rep(NA_real_, 10)
-# Tmice <- rep(NA_real_, 10)
+# Tm <- rep(NA_real_, 10)
 # Th <- rep(NA_real_, 10)
 # WtPctNaCl <- rep(NA_real_, 10)
 # molality <- rep(NA_real_, 10)
@@ -149,32 +152,21 @@ output$CH4est <- renderText({
 # Pcrit <- rep(NA_real_, 10)
 # dpdt <- rep(NA_real_, 10)
 
-FIAid <- as.character(c(1, 1, 1, 2, 2, 2, 2, 2, 3, 3))
+FIAid <- as.character(c(345, 345, 345, 20, 20, 20, 20, 20, 17, 17))
 FIid <- as.integer(c(1, 2, 3, 1, 2, 3, 4, 5, 1, 2))
-Tmice <- c(-17.8, -18.0, -17.5, -9.6, -10, -9.5, -9, -10.2, -2, -2.5)
+Tm <- c(-17.8, -18.0, -17.5, -9.6, -10, -9.5, 45, 47, -2, -2.5)
+phase <- as.character(c(1, 1, 1, 1, 1, 1, 2, 2, 3, 3))
 Th <- c(85, 92, 97, 120, 124, 125, 123, 120, 230, 233)
-WtPctNaCl <- B93s(Tmice)
-molality <- ZF87mol(WtPctNaCl)
-dens <- ZF87rho(molality, Th)
-
-if (Th > -21.2 & Th < 300) {
-  PatTh = A02e1(Th, WtPctNaCl)
-}
-else if (Th > 300 & Th < 484) {
-  PatTh = A02e2(Th, WtPctNaCl)
-}
-else {
-  PatTh = A02e3(Th, WtPctNaCl)
-}
-
+WtPctNaCl <- c(20.82, 20.97, 20.60, 13.51, 13.94, 13.40, 26.73, 26.77, 25.99, 25.92)
+dens <- B83rho(Th, WtPctNaCl)
+PatTh <- c(0.48, 0.63, 0.76, 1.81, 2.04, 2.12, 2.00, 1.80, 27.19, 28.57)
 Tcrit <- KB89ct(WtPctNaCl)
 Pcrit <- KB89cp(Tcrit)
-as <- 18.28 + 1.4413 * WtPctNaCl + 0.0047241 * WtPctNaCl^2 - 0.0024213 * WtPctNaCl^3 + 0.000038064 * WtPctNaCl^4
-bs <- 0.019041 - 0.015268 * WtPctNaCl + 0.000566012 * WtPctNaCl^2 - 0.0000042329 * WtPctNaCl^3 - 0.000000030354 * WtPctNaCl^4
-cs <- -0.00015988 + 0.000036892 * WtPctNaCl - 0.0000019473 * WtPctNaCl^2 + 0.000000041674 * WtPctNaCl^3 - 0.00000000033008 * WtPctNaCl^4
-dpdt <- as + bs * Th + cs * Th^2
+dpdt <- BV94isoch(WtPctNaCl, Th)
+message <- rep(NA_real_, 10)
+df <- data.frame(FIAid=FIAid, FIid=FIid, Tm=Tm, phase=phase, Th=Th, WtPctNaCl=WtPctNaCl, dens=dens, PatTh=PatTh, Tcrit=Tcrit, Pcrit=Pcrit, dpdt=dpdt, message=message)
 
-df <- data.frame(FIAid=FIAid, FIid=FIid, Tmice=Tmice, Th=Th, WtPctNaCl=WtPctNaCl, molality=molality, dens=dens, PatTh=PatTh, Tcrit=Tcrit, Pcrit=Pcrit, dpdt=dpdt)
+phasetypes = c(1, 2, 3)
 
 #make H20-NaCl data values reactive
 datavalues <- reactiveValues(data=df)
@@ -182,17 +174,18 @@ datavalues <- reactiveValues(data=df)
 #H2O-NaCl data table rendering
 output$table <- renderRHandsontable({
         rhandsontable(datavalues$data) %>%
+        hot_col("FIAid", type = "dropdown", allowInvalid = TRUE) %>%
+        hot_col("phase", type = "dropdown", allowInvalid = FALSE) %>%
         hot_col("WtPctNaCl", readOnly = TRUE) %>%
-        hot_col("molality", readOnly = TRUE) %>%
         hot_col("dens", readOnly = TRUE) %>%
         hot_col("PatTh", readOnly = TRUE) %>%
         hot_col("Tcrit", readOnly = TRUE) %>%
         hot_col("Pcrit", readOnly = TRUE) %>%
         hot_col("dpdt", readOnly = TRUE) %>%
         hot_context_menu(allowColEdit = FALSE) %>%
-        hot_validate_numeric(col = 3, min = -21.2, max = 0.1) %>%
-        hot_validate_numeric(col = 4, min = 45, max = 600)
-    })
+        hot_validate_numeric(col = 3, min = -21.2, max = 801) %>%
+        hot_validate_numeric(col = 4, min = 0, max = 1000) 
+}) 
 
 output$plot <- renderPlot({
     ggplot(datavalues$data, aes(x=Th, y=PatTh)) + 
@@ -209,65 +202,55 @@ output$plot2 <- renderPlot({
         theme_cowplot()
 })
 
-## If a change is made to the table, the following code will run to identify which row was changes, and recalculate as necessary
+## If a change is made to the table, the following code will recalculate as necessary
 observeEvent(
         input$table$changes$changes,
         {
-          
-# capture the row which is changed            
-            xi=input$table$changes$changes[[1]][[1]] 
             
 # use hot_t_r to convert to r objects
             datavalues$data <- hot_to_r(input$table) 
             
-##Calculate the salinity using equation 1 from Bodnar (1993)  
-            datavalues$data[xi+1,5] = B93s(datavalues$data[xi+1,3]) 
+#identify a specific row which changes            
+            xi=input$table$changes$changes[[1]][[1]]
             
-##Calculate the molality from the salinity in weight percent NaCl using Zhang and Frantz (1987)
-            datavalues$data[xi+1,6] = ZF87mol(datavalues$data[xi+1,5]) 
+##Calculate the salinity using equation 1 from Bodnar (1993) for Tm = ice, for Tm = halite or hydrohalite the salinity is calculated using Sterner, Hall and Bodnar (1988)
+            ifelse(datavalues$data[xi+1,4] == 1, datavalues$data[xi+1,6] <- B93s(datavalues$data[xi+1,3]), ifelse(datavalues$data[xi+1,4] == 2, datavalues$data[xi+1,6] <- SHB88Zs(datavalues$data[xi+1,3]), ifelse(datavalues$data[xi+1,4] == 3, datavalues$data[6] <- SHB88hhs(datavalues$data[xi+1,3]), datavalues$data[xi+1,12] <- "Warning: You have an incorrect Tm phase")))
             
-## Calculate the density (rho) using Zhang and Frantz (1987) for molality < 5, otherwise use Bodnar (1983)           
-             if(datavalues$data[xi+1,6] < 5) {
-               datavalues$data[xi+1,7] = ZF87rho(datavalues$data[xi+1,6], datavalues$data[xi+1,4])
-                  }
-             else if (datavalues$data[xi+1,6] > 5) {
-                  datavalues$data[xi+1,7] = B83rho(datavalues$data[xi+1,4], datavalues$data[xi+1,5])
-             }
-              else {
-                
-              }
+## Calculate the density (rho) using Bodnar (1983)           
+            datavalues$data[7] = B83rho(datavalues$data[5], datavalues$data[6])
+
    
 ## Calculate the Pressure at Th using Atkinson (2002)        
-            if (datavalues$data[xi+1,4] > -21.2 & datavalues$data[xi+1,4] < 300) {
-              datavalues$data[xi+1,8] = A02e1(datavalues$data[xi+1,4], datavalues$data[xi+1,5])
-            }
-            else if (datavalues$data[xi+1,4] > 300 & datavalues$data[xi+1,4] < 484) {
-              datavalues$data[xi+1,8] = A02e2(datavalues$data[xi+1,4], datavalues$data[xi+1,5])
-            }
-            else {
-              datavalues$data[xi+1,8] = A02e3(datavalues$data[xi+1,4], datavalues$data[xi+1,5])
-            }
+            ifelse(datavalues$data[5] > -21.2 & datavalues$data[5] < 300, datavalues$data[8] <- A02e1(datavalues$data[5], datavalues$data[6]), ifelse(datavalues$data[5] > 300 & datavalues$data[5] < 484, datavalues$data[8] <- A02e2(datavalues$data[5], datavalues$data[6]), ifelse(datavalues$data[5] > 484, datavalues$data[8] <- A02e3(datavalues$data[5], datavalues$data[6]), NA)))
             
-#calculate the critical Temperature for the FI system using Knight and Bodnar (1989)            
-            datavalues$data[xi+1,9] = KB89ct(datavalues$data[xi+1,5])
+#calculate the critical Temperature for the FI system using Knight and Bodnar (1989)
+            datavalues$data[9] = KB89ct(datavalues$data[6])
 
 #calculate the critical Pressure for the FI system
-            datavalues$data[xi+1,10] = KB89cp(datavalues$data[xi+1,9])
+            datavalues$data[10] = KB89cp(datavalues$data[9])
    
 #calculate an isochore using Bodnar and Vityk (1994)
-            datavalues$data[xi+1,11] = BV94isoch(datavalues$data[xi+1,5], datavalues$data[xi+1,4])         
-
+            datavalues$data[11] = BV94isoch(datavalues$data[6], datavalues$data[5]) 
+            
+            ifelse(datavalues$data[xi+1,5] > datavalues$data[xi+1,9], datavalues$data[xi+1,12] <- "Warning: Your Th is > Tcrit", datavalues$data[xi+1,12] <- NA_real_)
+            
+            ifelse(datavalues$data[xi+1,3] > -21.2 & datavalues$data[xi+1,3] < 0 & datavalues$data[xi+1,4] == 1, datavalues$data[xi+1,12] <- NA_real_, datavalues$data[xi+1,12] <- "Warning: Tm outside range ice")
+            
+            ifelse(datavalues$data[xi+1,3] > 0.1 & datavalues$data[xi+1,3] < 801 & datavalues$data[xi+1,4] == 2, datavalues$data[xi+1,12] <- NA_real_, datavalues$data[xi+1,12] <- "Warning: Tm outside range for halite")
 }
 )
 
-saveData <- function(){
-    write.csv(datavalues$data, file = "HNdata.csv", row.names = FALSE)
+# Downloadable csv of selected dataset ----
+output$downloadHNt <- downloadHandler(
+  filename = function() {
+    paste("FIcalcRdata", Sys.Date(), ".csv", sep = "_")
+  },
+  content = function(file) {
+    write.csv2(datavalues$data, file, row.names = FALSE)
+  }
+)
+
+
 }
-
-observeEvent(input$save, saveData())
-
-}
-
-
 
 shinyApp(ui, server)

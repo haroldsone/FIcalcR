@@ -1,11 +1,11 @@
-BV94isoch <- function(S, Th) {
+BV94isoch <- function(WtPctNaCl, Th) {
   #function to calculate the isochore for a H2O-NaCl fluid using the salinity in weight percent NaCl and the homogenization temperature in degrees celcius
-  xrt = ((18.28+1.4413*S+0.0047241*S^2-0.0024213*S^3+0.000038064*S^4)+(0.019041-0.015268*S+0.000566012*S^2-0.0000042329*S^3-0.000000030354*S^4)*Th+(-0.00015988+0.000036892*S-0.0000019473*S^2+0.000000041674*S^3-0.00000000033008*S^4)*Th^2)
+  xrt = ((18.28+1.4413*WtPctNaCl+0.0047241*WtPctNaCl^2-0.0024213*WtPctNaCl^3+0.000038064*WtPctNaCl^4)+(0.019041-0.015268*WtPctNaCl+0.000566012*WtPctNaCl^2-0.0000042329*WtPctNaCl^3-0.000000030354*WtPctNaCl^4)*Th+(-0.00015988+0.000036892*WtPctNaCl-0.0000019473*WtPctNaCl^2+0.000000041674*WtPctNaCl^3-0.00000000033008*WtPctNaCl^4)*Th^2)
 }
 
-B93s <- function(Tmice) {
+B93s <- function(Tm) {
   #function to calculate the salinity using Temperature on ice melting in equation 1 from Bodnar (1993)
-  WtPctNaCl = 0.00 + 1.78 * abs(Tmice) - 0.0442 * abs(Tmice)^2 + 0.000557 * abs(Tmice)^3
+  WtPctNaCl = 0.00 + 1.78 * abs(Tm) - 0.0442 * abs(Tm)^2 + 0.000557 * abs(Tm)^3
 }
 
 ZF87mol <- function(WtPctNaCl){
@@ -26,13 +26,19 @@ ZF87rho <- function(molality, Th){
   g8 <- -0.00006498
   g9 <- -0.000053074
   g10 <- 0.000001009
-  dens = (g1 + g5*molality + g6*molality^2 + g7*molality^3) + (g2 + g8*molality + g9*molality^2) * Th + (g3 + g10*molality) * Th^2 + g4*Th^3 
+  as <- g1 + g5*molality + g6*molality^2 + g7*molality^3
+  bs <- g2 + g8*molality + g9*molality^2
+  cs <- g3 + g10*molality
+  dens = as + bs * Th + cs * Th^2 + g4*Th^3 
 }
   
 B83rho <- function(Th, WtPctNaCl){
 # calculate the density using Th and WtPctNaCl into equation A1 from Bodnar (1983)
-  dens = 0.9923 - 0.030512 * (Th/100)^2 - 0.00021977 * (Th/100)^4 + 0.086241 (WtPctNaCl/10) - 0.041768 * (Th/100) * (WtPctNaCl/10) + 0.014825 * (Th/100)^2 * (WtPctNaCl/10) + 0.0014460 * (Th/100)^3 * (WtPctNaCl/10) - 0.0000000030852 * (Th/100)^8 * (WtPctNaCl/10) + 0.013051 * (Th/100) * (WtPctNaCl/10)^2 - 0.0061402 * (Th/100)^2 * (WtPctNaCl/10)^2 - 0.0012843 * (Th/100) * (WtPctNaCl/10)^3 + 0.00037604 * (Th/100)^2 * (WtPctNaCl)^3 - 0.0000000099594 * (Th/100)^2 * (WtPctNaCl)^7
+  tr <- Th/100
+  sr <- WtPctNaCl/10
+  dens = 0.9923 - 0.030512 * tr^2 - 0.00021977 * tr^4 + 0.086241 * sr - 0.041768 * tr * sr + 0.014825 * tr^2 * sr + 0.0014460 * tr^3 * sr - 0.0000000030852 * tr^8 * sr + 0.013051 * tr * sr^2 - 0.0061402 * tr^2 * sr^2 - 0.0012843 * tr * sr^3 + 0.00037604 * tr^2 * sr^3 - 0.0000000099594 * tr^2 * sr^7
 }
+
 
 ## function to calculate Pressure given Temperature and Salinity using equation 1 from Atkinson (2002)
 ## use in temperature range -21.2 to 300 C
@@ -164,4 +170,41 @@ KB89cp <- function(Tcrit){
   Pcrit <- 2094 - 20.56 * Tcrit + 0.06896 * Tcrit^2 - 0.00008903 * Tcrit^3 + 0.00000004214 * Tcrit^4
 }
 
+## Sterner, Hall and Bodnar equation to calculate NaCl solubility
 
+SHB88Zs <- function(Tm){
+  SHBpsi <- Tm/100
+  WtPctNaCl <- 26.242 + 0.4928 * SHBpsi + 1.42 * SHBpsi^2 - 0.223 * SHBpsi^3 + 0.04129 * SHBpsi^4 + 0.006295 * SHBpsi^5 - 0.001967 * SHBpsi^6 + 0.0001112 * SHBpsi^7
+}
+
+SHB88Nas <- function(Tm){
+  a <- 39.19843568
+  b <- 13.59271070
+  c <- -12.95646989
+  d <- -22.39663458
+  e <- -1.52357614
+  f <- 9.29672450
+  g <- 6.55485254
+  h <- -0.66512956
+  i <- -0.39464296
+  j <- 0.83679331
+  k <- -3.61131899
+  l <- 0.00275314
+  m <- 0.00822892
+  n <- -0.00608193
+  o <- 0.00344002
+  p <- -0.00531261
+  q <- 0.04128563
+  r <- 0.00629464
+  s <- 0.00488294
+  tr <- Tm/100
+  WtPctNaCl <- a + b * tr + c + d * tr + e * tr^2 + f * tr + g * tr^2 + h * tr^3 + i * tr^3 + j * tr^3 + k * tr^2 + l * tr^7 + m * tr^6 + n * tr^7 + o * tr^7 + p * tr^6 + q * tr^4 + r * tr^5 + s * tr^6
+}
+
+SHB88hhs <- function(Tm){
+  a <- 40.36947594
+  b <- 14.80771966
+  c <- -14.08238722
+  tr <- Tm/100
+  WtPctNaCl <- a + b*tr + c
+}
