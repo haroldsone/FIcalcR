@@ -55,7 +55,9 @@ ui <- dashboardPage(
                         br(), 
                         strong("-In column 'phase': Enter the value for last phase to disappear (1 = ice, 2 = halite and 3 = hydrohalite)"),
                         br(),
-                        strong("-Copying data from an excel table and pasting into the below table will work, and new rows will automatically be added. Use caution however, as some of the error handling will not function properly to warn of values outside acceptable ranges, etc."),
+                        strong("-Copying data from an excel table and pasting into the below table will not work currently"),
+                        br(),
+                        strong("-New rows can be added by right-clicking on the table"),
                         br(),
                         rHandsontableOutput("table"),
                 fluidRow(
@@ -77,6 +79,10 @@ ui <- dashboardPage(
                         p("Bodnar, R.J., and Vityk, M.O., 1994, Interpretation of microthermometric data for H2O-NaCl fluid inclusions. In Fluid Inclusions in Minerals; Method and Applications, B. DeVivo & M.L. Frezzotti, eds., Virginia Polytechnic Institute and State University Press, Blacksburg, Virginia, p. 117-130"),
                         br(),
                         p("Knight, C.L., Bodnar,R.J.,1989, Synthetic fluid inclusions: IX Critical PVTX properties of NaCl–H2O solutions, Geochimica et Cosmochimica Acta, vol. 53, p. 3–8"),
+                        br(),
+                        p("Lecumberri-Sanchez, P., Steele-MacInnis, M., Bodnar, R.J., 2012, A numerical model to estimate trapping conditions of fluid inclusions that homogenize by halite disappearance, Geochimica et Cosmochimica Acta, vol. 92, pg. 14-22"),
+                        br(),
+                        p("Steel-MacInnis, M., Lecumberri-Sanchez, P., Bodnar, R.J., 2012, HokieFlincs_H2O-NaCl: A microsoft excel spreadsheet for interpreting microthermometric data from fluid inclusions based on the PVTX properties of H2O-NaCl, Computers & Geosciences, vol. 49, p. 334-337"),
                         br(),
                         p("Sterner, S.M., Hall, D.L., Bodnar, R.J., 1988, Synthetic fluid inclusions. V. Solubility relations in the system NaCl-KCl-H2O under vapor-saturated conditions, Geochimica et Cosmochimica Acta, vol. 52, p. 989-1006"))))),
     
@@ -208,35 +214,78 @@ observeEvent(
         {
             
 # use hot_t_r to convert to r objects
-            datavalues$data <- hot_to_r(input$table) 
+            datavalues$data <- hot_to_r(input$table)
             
 #identify a specific row which changes            
             xi=input$table$changes$changes[[1]][[1]]
             
-##Calculate the salinity using equation 1 from Bodnar (1993) for Tm = ice, for Tm = halite or hydrohalite the salinity is calculated using Sterner, Hall and Bodnar (1988)
-            ifelse(datavalues$data[xi+1,4] == 1, datavalues$data[xi+1,6] <- B93s(datavalues$data[xi+1,3]), ifelse(datavalues$data[xi+1,4] == 2, datavalues$data[xi+1,6] <- SHB88Zs(datavalues$data[xi+1,3]), ifelse(datavalues$data[xi+1,4] == 3, datavalues$data[6] <- SHB88hhs(datavalues$data[xi+1,3]), datavalues$data[xi+1,12] <- "Warning: You have an incorrect Tm phase")))
+##Calculate the salinity using equation 1 from Bodnar (1993) for Tm = ice, for Tm = halite or hydrohalite the salinity is calculated using Sterner, Hall and Bodnar (1988), unless Tm > Th and 'halite' is selected, in which case Lecumberri-Sanchez, Steele-MacInnis, Bodnar (2012) is used
+            ifelse(
+              datavalues$data[xi+1,4] == 1, 
+                datavalues$data[xi+1,6] <- B93s(datavalues$data[xi+1,3]),
+              ifelse(
+                (datavalues$data[xi+1,3] < datavalues$data[5]) & (datavalues$data[xi+1,4] == 2),
+                datavalues$data[xi+1,6] <- SHB88Zs(datavalues$data[xi+1,3]), 
+              ifelse(
+                (datavalues$data[xi+1,3] > datavalues$data[xi+1,5]) & (datavalues$data[xi+1,4] == 2),
+                datavalues$data[xi+1,6] <- LSB12s(datavalues$data[xi+1,3],datavalues$data[xi+1,5]), 
+              ifelse(
+                datavalues$data[xi+1,4] == 3,
+                datavalues$data[xi+1,6] <- SHB88hhs(datavalues$data[xi+1,3]),
+                  datavalues$data[xi+1,12] <- NA_real_))))
             
 ## Calculate the density (rho) using Bodnar (1983)           
-            datavalues$data[7] = B83rho(datavalues$data[5], datavalues$data[6])
+            ifelse(
+              datavalues$data[4] == 2 & datavalues$data[3] > datavalues$data[5],
+              datavalues$data[7] <- LSB12rho(datavalues$data[3],datavalues$data[5]),datavalues$data[7] <-  B83rho(datavalues$data[5], datavalues$data[6]))
 
    
-## Calculate the Pressure at Th using Atkinson (2002)        
-            ifelse(datavalues$data[5] > -21.2 & datavalues$data[5] < 300, datavalues$data[8] <- A02e1(datavalues$data[5], datavalues$data[6]), ifelse(datavalues$data[5] > 300 & datavalues$data[5] < 484, datavalues$data[8] <- A02e2(datavalues$data[5], datavalues$data[6]), ifelse(datavalues$data[5] > 484, datavalues$data[8] <- A02e3(datavalues$data[5], datavalues$data[6]), NA)))
+## Calculate the Pressure at Th using Atkinson (2002) or LSB12
+  ifelse(
+    datavalues$data[xi+1,3] > datavalues$data[xi+1,5],
+      datavalues$data[xi+1,8] <- LSB12p(datavalues$data[xi+1,3],datavalues$data[xi+1,5]),
+    ifelse(
+      datavalues$data[xi+1,3] < datavalues$data[xi+1,5] & datavalues$data[xi+1,5] > -21.2 & datavalues$data[xi+1,5] < 300,
+      datavalues$data[xi+1,8] <- A02e1(datavalues$data[xi+1,5],datavalues$data[xi+1,6]),
+    ifelse(
+      datavalues$data[xi+1,3] < datavalues$data[5] & datavalues$data[xi+1,5] > 300 & datavalues$data[xi+1,5] < 484,
+      datavalues$data[xi+1,8] <- A02e2(datavalues$data[xi+1,5], datavalues$data[xi+1,6]),
+    ifelse(
+      datavalues$data[xi+1,3] < datavalues$data[xi+1,5] & datavalues$data[xi+1,5] > 484,
+      datavalues$data[xi+1,8] <- A02e3(datavalues$data[xi+1,5], datavalues$data[xi+1,6]),
+      datavalues$data[xi+1,8] <- NA_real_))))
             
 #calculate the critical Temperature for the FI system using Knight and Bodnar (1989)
-            datavalues$data[9] = KB89ct(datavalues$data[6])
+  datavalues$data[9] <- if(datavalues$data[3] < datavalues$data[5]){
+      KB89ct(datavalues$data[6])
+  } else {
+      datavalues$data[9] <- NA_real_
+  }
 
 #calculate the critical Pressure for the FI system
-            datavalues$data[10] = KB89cp(datavalues$data[9])
+              ifelse(
+                (datavalues$data[3] < datavalues$data[5]) & (datavalues$data[4] == "2"),
+                  datavalues$data[10] <- LSB12isoch(datavalues$data[3],datavalues$data[5]),
+                  datavalues$data[10] <-  KB89cp(datavalues$data[9]))
    
 #calculate an isochore using Bodnar and Vityk (1994)
             datavalues$data[11] = BV94isoch(datavalues$data[6], datavalues$data[5]) 
             
-            ifelse(datavalues$data[xi+1,5] > datavalues$data[xi+1,9], datavalues$data[xi+1,12] <- "Warning: Your Th is > Tcrit", datavalues$data[xi+1,12] <- NA_real_)
+  
+      
             
-            ifelse(datavalues$data[xi+1,3] > -21.2 & datavalues$data[xi+1,3] < 0 & datavalues$data[xi+1,4] == 1, datavalues$data[xi+1,12] <- NA_real_, datavalues$data[xi+1,12] <- "Warning: Tm outside range ice")
+## TODO: Need to create/fix error handling statements
+                      # ifelse(datavalues$data[xi+1,5] > datavalues$data[xi+1,9], datavalues$data[xi+1,12] <- "Warning: Your Th is > Tcrit", datavalues$data[xi+1,12] <- NA_real_)
             
-            ifelse(datavalues$data[xi+1,3] > 0.1 & datavalues$data[xi+1,3] < 801 & datavalues$data[xi+1,4] == 2, datavalues$data[xi+1,12] <- NA_real_, datavalues$data[xi+1,12] <- "Warning: Tm outside range for halite")
+            # ifelse(
+            #   datavalues$data[xi+1,3] > -21.2 & datavalues$data[xi+1,3] < 0 & datavalues$data[xi+1,4] == 1, 
+            #       datavalues$data[xi+1,12] <- NA_real_, 
+            #       datavalues$data[xi+1,12] <- "Warning: Tm outside range ice")
+            # 
+            # ifelse(
+            #   datavalues$data[xi+1,3] > 0.1 & datavalues$data[xi+1,3] < 801 & datavalues$data[xi+1,4] == 2,
+            #       datavalues$data[xi+1,12] <- NA_real_, 
+            #       datavalues$data[xi+1,12] <- "Warning: Tm outside range for halite")
 }
 )
 
