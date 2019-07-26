@@ -7,7 +7,10 @@ library(cowplot)
 library(magick)
 library(grid)
 library(png)
-source("CalcFuncs.R")
+library(plotly)
+library(readxl)
+library(gg3D)
+source("HNFuncs.R")
 
 T947b <- readPNG("www/Thiery947b2.png")
 
@@ -55,10 +58,9 @@ ui <- dashboardPage(
                         br(), 
                         strong("-In column 'phase': Enter the value for last phase to disappear (1 = ice, 2 = halite and 3 = hydrohalite)"),
                         br(),
-                        strong("-Copying data from an excel table and pasting into the below table will not work currently"),
-                        br(),
                         strong("-New rows can be added by right-clicking on the table"),
                         br(),
+                        p("-You can also add data by copying from an excel table. New rows will automatically be added, but you will need to prompt calculations by 'modifying' a data cell (just re-enter the same values) for each row below row 10"),
                         rHandsontableOutput("table"),
                 fluidRow(
                         downloadButton("downloadHNt", "Download"),
@@ -160,16 +162,16 @@ output$CH4est <- renderText({
 
 FIAid <- as.character(c(345, 345, 345, 20, 20, 20, 20, 20, 17, 17))
 FIid <- as.integer(c(1, 2, 3, 1, 2, 3, 4, 5, 1, 2))
-Tm <- c(-17.8, -18.0, -17.5, -9.6, -10, -9.5, 45, 47, -2, -2.5)
+Tm <- as.numeric(c(-17.8, -18.0, -17.5, -9.6, -10, -9.5, 45, 47, -2, -2.5))
 phase <- as.character(c(1, 1, 1, 1, 1, 1, 2, 2, 3, 3))
-Th <- c(85, 92, 97, 120, 124, 125, 123, 120, 230, 233)
-WtPctNaCl <- c(20.82, 20.97, 20.60, 13.51, 13.94, 13.40, 26.73, 26.77, 25.99, 25.92)
-dens <- B83rho(Th, WtPctNaCl)
-PatTh <- c(0.48, 0.63, 0.76, 1.81, 2.04, 2.12, 2.00, 1.80, 27.19, 28.57)
-Tcrit <- KB89ct(WtPctNaCl)
-Pcrit <- KB89cp(Tcrit)
-dpdt <- BV94isoch(WtPctNaCl, Th)
-message <- rep(NA_real_, 10)
+Th <- as.numeric(c(85, 92, 97, 120, 124, 125, 123, 120, 230, 233))
+WtPctNaCl <- as.numeric(c(20.82, 20.97, 20.60, 13.51, 13.94, 13.40, 26.73, 26.77, 25.99, 25.92))
+dens <- as.numeric(c(1.12, 1.12, 1.11, 1.04, 1.04, 1.03, 1.14, 1.14, 1.02, 1.01))
+PatTh <- as.numeric(c(0.48, 0.63, 0.76, 1.81, 2.04, 2.12, 2.00, 1.53, 27.19, 23.35))
+Tcrit <- as.numeric(c(581.21, 583.49, 577.88, 497.64, 501.61, 496.63, 706.71, 707.77, 686.12, 684.17))
+Pcrit <- as.numeric(c(768.28, 773.90, 760.04, 552.63, 563.35, 549.88, 1092.84, 17.25, 1033.36, 1027.98))
+dpdt <- as.numeric(c(27.92, 27.34, 26.92, 23.55, 23.39, 23.12, 24.35, 24.54, 17.98, 17.81))
+message <- rep(NA_real_,10)
 df <- data.frame(FIAid=FIAid, FIid=FIid, Tm=Tm, phase=phase, Th=Th, WtPctNaCl=WtPctNaCl, dens=dens, PatTh=PatTh, Tcrit=Tcrit, Pcrit=Pcrit, dpdt=dpdt, message=message)
 
 phasetypes = c(1, 2, 3)
@@ -203,11 +205,11 @@ output$plot <- renderPlot({
 })
 
 output$plot2 <- renderPlot({
-    ggplot(datavalues$data, aes(Th, WtPctNaCl, color = FIAid, size = 3)) +
+    ggplot(datavalues$data, aes(x=Th, y=WtPctNaCl, color = FIAid, size = 3)) +
         geom_point() +
         theme_cowplot()
 })
-
+ 
 ## If a change is made to the table, the following code will recalculate as necessary
 observeEvent(
         input$table$changes$changes,
@@ -256,26 +258,26 @@ observeEvent(
       datavalues$data[xi+1,8] <- NA_real_))))
             
 #calculate the critical Temperature for the FI system using Knight and Bodnar (1989)
-  datavalues$data[9] <- if(datavalues$data[3] < datavalues$data[5]){
-      KB89ct(datavalues$data[6])
+  datavalues$data[xi+1,9] <- if(datavalues$data[xi+1,3] < datavalues$data[xi+1,5]){
+      KB89ct(datavalues$data[xi+1,6])
   } else {
-      datavalues$data[9] <- NA_real_
+      datavalues$data[xi+1,9] <- NA_real_
   }
 
 #calculate the critical Pressure for the FI system
               ifelse(
-                (datavalues$data[3] < datavalues$data[5]) & (datavalues$data[4] == "2"),
-                  datavalues$data[10] <- LSB12isoch(datavalues$data[3],datavalues$data[5]),
-                  datavalues$data[10] <-  KB89cp(datavalues$data[9]))
+                (datavalues$data[xi+1,3] < datavalues$data[xi+1,5]) & (datavalues$data[xi+1,4] == "2"),
+                  datavalues$data[xi+1,10] <- LSB12isoch(datavalues$data[xi+1,3],datavalues$data[xi+1,5]),
+                  datavalues$data[xi+1,10] <-  KB89cp(datavalues$data[xi+1,9]))
    
 #calculate an isochore using Bodnar and Vityk (1994)
-            datavalues$data[11] = BV94isoch(datavalues$data[6], datavalues$data[5]) 
+            datavalues$data[xi+1,11] = BV94isoch(datavalues$data[xi+1,6], datavalues$data[xi+1,5]) 
             
   
       
             
 ## TODO: Need to create/fix error handling statements
-                      # ifelse(datavalues$data[xi+1,5] > datavalues$data[xi+1,9], datavalues$data[xi+1,12] <- "Warning: Your Th is > Tcrit", datavalues$data[xi+1,12] <- NA_real_)
+                      ifelse(datavalues$data[xi+1,5] > datavalues$data[xi+1,9], datavalues$data[xi+1,12] <- "Warning: Your Th is > Tcrit", datavalues$data[xi+1,12] <- NA_real_)
             
             # ifelse(
             #   datavalues$data[xi+1,3] > -21.2 & datavalues$data[xi+1,3] < 0 & datavalues$data[xi+1,4] == 1, 
